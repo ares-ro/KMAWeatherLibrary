@@ -12,8 +12,8 @@ namespace LibraryTest
 
         private async void button1_Click(object sender, EventArgs e)
         {
-            string key = File.ReadAllText("");
-            KMAWeatherLibrary.Parameter parameter = new KMAWeatherLibrary.Parameter(key, 37.55476, 126.97075, DateTime.Now - TimeSpan.FromMinutes(0));
+            string key = File.ReadAllText("../../../../SecretFolder/data.txt");
+            KMAWeatherLibrary.Parameter parameter = new KMAWeatherLibrary.Parameter(key, 37.55476, 126.97075, DateTime.Now - TimeSpan.FromMinutes(60));
             WeatherResult wrNow = new WeatherResult();
             WeatherResult wrUSPredict = new WeatherResult();
             WeatherResult wrSPredict = new WeatherResult();
@@ -154,7 +154,7 @@ namespace KMAWeatherLibrary
             }
 
             wr.state = GetState(responseBody);
-            wr.weatherDataList = CallApi(responseBody, "fcst", "fsct");
+            wr.weatherDataList = CallApi(responseBody, "fcst", "fcst");
 
             return wr;
         }
@@ -342,6 +342,8 @@ namespace KMAWeatherLibrary
         public string serviceKey;
         public double latitude; //위도
         public double longitude; //경도
+        public DateSet dateSet;
+
         public DateTime dateTime;
 
         public Parameter(string serviceKey, double latitude, double longitude, DateTime dateTime)
@@ -351,6 +353,15 @@ namespace KMAWeatherLibrary
             this.longitude = longitude;
             this.dateTime = dateTime;
         }
+
+        public void DateSetting()
+        {
+
+        }
+    }
+    public class DateSet
+    {
+
     }
 
     public class WeatherResult
@@ -421,13 +432,6 @@ namespace KMAWeatherLibrary
 }
 
 /*
-예보 기반 과거 데이터
-예보 기반 현재 데이터
-예보 기반 미래 데이터
-
-
-
-
 기온
 1시간 강수량
 하늘상태
@@ -454,22 +458,7 @@ namespace KMAWeatherLibrary
 풍향
 풍속
 
-
-
-simple
-기온
-습도
-1시간 강수량
-하늘상태
-풍향
-풍속
-
-
-
-Management 를 만듦
-해당 객체에 파라미터 설정하고
-메소드 실행해서 객체 내부 프로퍼티에 정보 저장
-이후 다른 메소드로 데이터 꺼내 쓰기
-
-
+개별 호출 메소드 만들고 커스텀 객체에 넣어 쓰기
+호출 별로 데이터가 다르고 널 데이터, 애초에 없는 데이터 구분
+원하는 것만 호출해서 api 과잉 호출 방지
  */
