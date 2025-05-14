@@ -1,7 +1,7 @@
 # KMA Weather Library
 ![C#](https://img.shields.io/badge/C%23-68217A?style=flat-square)
 
-대한민국 기상청 KMA에서 제공하는 단기예보 API를 기반으로 한 C# 라이브러리입니다.  
+대한민국 기상청 KMA에서 제공하는 단기예보 API를 기반으로 제작된 C# 라이브러리입니다.  
 상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
 
 # 사용방법
@@ -11,14 +11,17 @@
 
 # 예제
 ```
-string key = "api key";
+string key = "api key"; //api key
 WeatherParameter parameter = new WeatherParameter(key, 37.55476, 126.97075, DateTime.Now, DateTimeMode.Floor);
 
+//WeatherResult wrNow;
+//WeatherResult wrUSPredict;
+WeatherResult wrSPredict = new WeatherResult();
 try
 {
-    //WeatherResult wrNow = await GetWeather.NowAsync(parameter);
-    //WeatherResult wrUSPredict = await GetWeather.UltraShortPredictAsync(parameter);
-    WeatherResult wrSPredict = await GetWeather.ShortPredictAsync(parameter);
+    //wrNow = await GetWeather.NowAsync(parameter);
+    //wrUSPredict = await GetWeather.UltraShortPredictAsync(parameter);
+    wrSPredict = await GetWeather.ShortPredictAsync(parameter);
 
     Debug.WriteLine(wrSPredict.BaseTime);
     foreach (Dictionary<string, string> a in wrSPredict.Result)
@@ -34,6 +37,7 @@ catch (Exception ex)
 {
     Debug.WriteLine(ex.Message);
 }
+
 ```
 
 # 상세
@@ -78,6 +82,7 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 
 | 데이터 | 설명 | 비고 |
 | :--- | :--- | :--- |
+| dateTime | 날짜 | yyyyMMddHHmm |
 | temperature | 기온 | °C |
 | rainPerHour | 1시간 강수량 | mm |
 | skyState | 하늘상태 | 맑음, 구름많음, 흐림 |
