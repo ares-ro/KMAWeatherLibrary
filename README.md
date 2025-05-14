@@ -1,11 +1,11 @@
 # KMA Weather Library
 ![C#](https://img.shields.io/badge/C%23-68217A?style=flat-square)
 
-대한민국 기상청 KMA에서 제공하는 단기예보 api의 C# 라이브러리입니다.  
-독스 등 상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
+대한민국 기상청 KMA에서 제공하는 단기예보 API를 기반으로 한 C# 라이브러리입니다.  
+상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
 
 # 사용방법
-1. https://www.data.go.kr/index.do 공공데이터포털에 로그인 후 api키를 발급받습니다.
+1. https://www.data.go.kr/index.do 공공데이터포털에 로그인 후 API키를 발급받습니다.
 2. https://www.data.go.kr/data/15084084/openapi.do 기상청 단기예보의 활용신청을 진행합니다.
 3. dll 파일을 다운로드 후 프로젝트에 참조하여 사용합니다.
 
@@ -16,21 +16,23 @@ WeatherParameter parameter = new WeatherParameter(key, 37.55476, 126.97075, Date
 
 try
 {
-    WeatherResult wrUSPredict = await GetWeather.UltraShortPredictAsync(parameter);
+    //WeatherResult wrNow = await GetWeather.NowAsync(parameter);
+    //WeatherResult wrUSPredict = await GetWeather.UltraShortPredictAsync(parameter);
+    WeatherResult wrSPredict = await GetWeather.ShortPredictAsync(parameter);
 
-    Debug.WriteLine(wrUSPredict.BaseTime);
-
-    foreach (Dictionary<string, string> a in wrUSPredict.Result)
+    Debug.WriteLine(wrSPredict.BaseTime);
+    foreach (Dictionary<string, string> a in wrSPredict.Result)
     {
         foreach (KeyValuePair<string, string> b in a)
         {
             Debug.WriteLine($"{b.Key}: {b.Value}");
         }
+        Debug.WriteLine("");
     }
 }
-catch
+catch (Exception ex)
 {
-
+    Debug.WriteLine(ex.Message);
 }
 ```
 
@@ -57,7 +59,7 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 | DateTimeMode.FloorBefore | 호출 가능한 가장 가까운 발표 시점에서 바로 전 시점으로 설정합니다. 예측 데이터가 예상시간 내에 생성되지 못했을 경우 이전 데이터를 가져오기 위해 사용하기 적합합니다. |
 
 ### API 호출
-| api 호출 메소드 | 설명 |
+| 호출 메소드 | 설명 |
 | :--- | :--- |
 | GetWeather.NowAsync | 초단기실황 |
 | GetWeather.UltraShortPredictAsync | 초단기예보 |
