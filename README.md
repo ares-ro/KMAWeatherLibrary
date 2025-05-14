@@ -10,6 +10,7 @@
 3. dll 파일을 다운로드 후 프로젝트에 참조하여 사용합니다.
 
 # 예제
+- 코드 예제
 ```
 string key = "api key"; //api key
 WeatherParameter parameter = new WeatherParameter(key, 37.55476, 126.97075, DateTime.Now, DateTimeMode.Floor);
@@ -37,8 +38,10 @@ catch (Exception ex)
 {
     Debug.WriteLine(ex.Message);
 }
-
 ```
+- 프로젝트 예제 (Windows Forms)
+
+https://github.com/ares-ro/KMAWeatherLibrary/tree/main/LibraryTest
 
 # 상세
 ### 파라미터
@@ -47,14 +50,14 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 ```
 | 파라미터 | 설명 |
 | :--- | :--- |
-| serviceKey | 공공데이터포털에서 발급받은 api키 |
+| serviceKey | 공공데이터포털에서 발급받은 API키 |
 | latitude | 기상정보 위치의 위도 |
 | longitude | 기상정보 위치의 경도 |
 | dateTime | 기상정보 발표 시점 |
 | dateTimeMode | 기상정보 발표 시점 설정 |
 
 - DateTimeMode  
-기상청 api 호출 시 발표 시점 설정이 필요합니다. DateTimeMode를 이용하여 해당 설정을 간편하게 진행할 수 있습니다.
+기상청 API 호출 시 발표 시점 설정이 필요합니다. DateTimeMode를 이용하여 해당 설정을 간편하게 진행할 수 있습니다.
 
 | 설정 | 설명 |
 | :--- | :--- |
