@@ -1,8 +1,8 @@
 # KMA Weather Library
 ![C#](https://img.shields.io/badge/C%23-68217A?style=flat-square)
-
+![image](https://github.com/ares-ro/KMAWeatherLibrary/blob/main/docs/%EC%A0%9C%EB%AA%A9%20%EC%97%86%EC%9D%8C-1.png)
 대한민국 기상청 KMA에서 제공하는 단기예보 API를 기반으로 제작된 C# 라이브러리입니다.  
-상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
+API에 관한 상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
 
 # 사용방법
 1. https://www.data.go.kr/index.do 공공데이터포털에 로그인 후 API키를 발급받습니다.
@@ -81,7 +81,7 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 | Result | 기상 데이터 |
 
 - WeatherResult.Result  
-호출 메소드마다 반환되는 데이터에 차이가 있습니다. 상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
+호출 메소드마다 반환되는 데이터에 차이가 있습니다. 상세정보는 https://www.data.go.kr/data/15084084/openapi.do에서 확인 가능합니다.
 
 | 데이터 | 설명 | 비고 |
 | :--- | :--- | :--- |
