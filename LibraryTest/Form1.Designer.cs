@@ -29,48 +29,55 @@
         private void InitializeComponent()
         {
             button1 = new Button();
-            listView1 = new ListView();
             label1 = new Label();
+            dataGridView1 = new DataGridView();
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
             // button1
             // 
-            button1.Location = new Point(1177, 646);
+            button1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            button1.Location = new Point(1158, 9);
             button1.Name = "button1";
-            button1.Size = new Size(75, 23);
+            button1.Size = new Size(94, 28);
             button1.TabIndex = 0;
             button1.Text = "run";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
-            // listView1
-            // 
-            listView1.Location = new Point(12, 33);
-            listView1.Name = "listView1";
-            listView1.Size = new Size(1159, 636);
-            listView1.TabIndex = 1;
-            listView1.UseCompatibleStateImageBehavior = false;
-            // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Font = new Font("맑은 고딕", 12F);
+            label1.Font = new Font("맑은 고딕", 15F);
             label1.Location = new Point(12, 9);
             label1.Name = "label1";
-            label1.Size = new Size(90, 21);
+            label1.Size = new Size(110, 28);
             label1.TabIndex = 2;
             label1.Text = "발표 시점: ";
+            // 
+            // dataGridView1
+            // 
+            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
+            dataGridView1.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView1.Location = new Point(12, 43);
+            dataGridView1.Name = "dataGridView1";
+            dataGridView1.Size = new Size(1240, 626);
+            dataGridView1.TabIndex = 3;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1264, 681);
+            Controls.Add(dataGridView1);
             Controls.Add(label1);
-            Controls.Add(listView1);
             Controls.Add(button1);
+            MinimumSize = new Size(800, 450);
             Name = "Form1";
             Text = "Form1";
+            ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -78,7 +85,7 @@
         #endregion
 
         private Button button1;
-        private ListView listView1;
         private Label label1;
+        private DataGridView dataGridView1;
     }
 }
