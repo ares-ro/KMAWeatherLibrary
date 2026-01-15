@@ -1,4 +1,7 @@
+using System.Data;
 using System.Diagnostics;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Windows.Forms;
 using KMAWeatherLibrary;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -14,38 +17,45 @@ namespace LibraryTest
 
         private async void button1_Click(object sender, EventArgs e)
         {
+            //get data
             string apiKey = File.ReadAllText("../../../../SecretFolder/data.txt");
             WeatherParameter parameter = new WeatherParameter(apiKey, 37.55476, 126.97075, DateTime.Now, DateTimeMode.Floor);
 
-            WeatherResult wr = new WeatherResult();
+            WeatherData weatherData = new WeatherData();
             try
             {
-                //wr = await GetWeather.NowAsync(parameter);
-                //wr = await GetWeather.UltraShortPredictAsync(parameter);
-                wr = await GetWeather.ShortPredictAsync(parameter);
+                //weatherData = await GetWeather.NowAsync(parameter);
+                //weatherData = await GetWeather.UltraShortPredictAsync(parameter);
+                weatherData = await GetWeather.ShortPredictAsync(parameter);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(ex.Message);
+                MessageBox.Show(text: ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
-            label1.Text = $"발표시점: {wr.BaseTime}";
-
-            List<string> keyList = wr.Result.SelectMany(d => d.Keys).Distinct().ToList();
+            //show data
+            label1.Text = $"정보: {weatherData.baseDateTime} 위치: {weatherData.latitude}, {weatherData.longitude}";
 
             dataGridView1.Columns.Clear();
-            foreach (string key in keyList)
+            dataGridView1.Rows.Clear();
+
+            dataGridView1.Columns.Add("시간", "시간");
+            List<string> categories = weatherData.items.SelectMany(x => x.values.Keys).Distinct().ToList();
+            foreach (string category in categories)
             {
-                dataGridView1.Columns.Add(key, key);
+                dataGridView1.Columns.Add(category, category);
             }
 
-            dataGridView1.Rows.Clear();
-            foreach (Dictionary<string, string> dict in wr.Result)
+            foreach (WeatherDataItem wdc in weatherData.items)
             {
-                List<string> row = new();
-                for (int i = 0; i < keyList.Count; i++)
+                List<string> row = new List<string>();
+                row.Add(wdc.fcstDateTime.ToString());
+                for (int i = 1; i < dataGridView1.Columns.Count; i++)
                 {
-                    if (dict.TryGetValue(keyList[i], out string value))
+                    string category = dataGridView1.Columns[i].Name;
+
+                    if (wdc.values.TryGetValue(category, out string value))
                     {
                         row.Add(value);
                     }
@@ -54,8 +64,13 @@ namespace LibraryTest
                         row.Add("");
                     }
                 }
+
                 dataGridView1.Rows.Add(row.ToArray());
             }
+
+            ////save data
+            //string json = WeatherDataConvert.ToJson(weatherData);
+            //File.WriteAllText("weather.json", json);
         }
     }
 }

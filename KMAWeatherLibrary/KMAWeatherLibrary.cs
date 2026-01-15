@@ -1,21 +1,21 @@
-﻿using System.Xml;
+﻿using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Xml;
 
 namespace KMAWeatherLibrary
 {
     public class GetWeather
     {
-        public static async Task<WeatherResult> NowAsync(WeatherParameter parameter)
-        {
-            //api url
-            string responseBody;
-            string apiUrl = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst";
-            string parameterString = "";
+        static HttpClient client = new HttpClient();
 
+        public static async Task<WeatherData> NowAsync(WeatherParameter parameter)
+        {
+            string apiUrl = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst";
             var (nx, ny) = LambertCCProjection.LatLonToGrid(parameter.latitude, parameter.longitude);
 
             //date convert
             DateTime dateTimeConvert = new();
-
             if (parameter.dateTimeMode == DateTimeMode.Raw)
             {
                 dateTimeConvert = parameter.dateTime;
@@ -29,87 +29,71 @@ namespace KMAWeatherLibrary
                 dateTimeConvert = DateFloor(parameter.dateTime, new TimeSpan(0, 0, 0), 60, 10 + 60);
             }
 
-            string base_date = dateTimeConvert.Year.ToString() + dateTimeConvert.Month.ToString("D2") + dateTimeConvert.Day.ToString("D2");
-            string base_time = dateTimeConvert.Hour.ToString("D2") + dateTimeConvert.Minute.ToString("D2");
-
-
-            parameterString += "serviceKey=" + parameter.serviceKey + "&";
-            parameterString += "numOfRows=" + "1000" + "&";
-            parameterString += "pageNo=" + "1" + "&";
-            parameterString += "base_date=" + base_date + "&";
-            parameterString += "base_time=" + base_time + "&";
-            parameterString += "nx=" + nx + "&";
-            parameterString += "ny=" + ny;
+            //set url
+            string parameterString = "serviceKey=" + parameter.serviceKey + "&" +
+                                     "pageNo=" + "1" + "&" +
+                                     "numOfRows=" + "1000" + "&" +
+                                     "dataType=" + "JSON" + "&" +
+                                     "base_date=" + dateTimeConvert.ToString("yyyyMMdd") + "&" +
+                                     "base_time=" + dateTimeConvert.ToString("HHmm") + "&" +
+                                     "nx=" + nx + "&" +
+                                     "ny=" + ny;
 
             string fullUrl = $"{apiUrl}?{parameterString}";
 
             //api call
-            try
+            HttpResponseMessage response = await client.GetAsync(fullUrl);
+            if (response.IsSuccessStatusCode == false)
             {
-                HttpClient client = new();
-                HttpResponseMessage response = await client.GetAsync(fullUrl);
-                response.EnsureSuccessStatusCode();
-                responseBody = await response.Content.ReadAsStringAsync();
-
-                if (GetState(responseBody) != WeatherResultState.NORMAL_SERVICE)
-                {
-                    throw new KMAWeatherApiException($"Api Error: {GetState(responseBody)}");
-                }
-
-                //data add
-                List<Dictionary<string, string>> buffer = new();
-
-                XmlDocument xmlDoc = new();
-                xmlDoc.LoadXml(responseBody);
-                XmlNode xmlNode = xmlDoc.DocumentElement;
-                XmlNodeList xnl = xmlNode.SelectNodes("//body/items/item");
-                foreach (XmlNode xn in xnl)
-                {
-                    string date = xn.SelectSingleNode("baseDate").InnerText;
-                    string time = xn.SelectSingleNode("baseTime").InnerText;
-                    DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
-
-                    Dictionary<string, string> bufferSelect = null;
-
-                    foreach (Dictionary<string, string> a in buffer)
-                    {
-                        if (a["dateTime"] == dt.ToString("yyyyMMddHHmm"))
-                        {
-                            bufferSelect = a;
-                            break;
-                        }
-                    }
-                    if (bufferSelect == null)
-                    {
-                        bufferSelect = new Dictionary<string, string> { { "dateTime", dt.ToString("yyyyMMddHHmm") } };
-                        buffer.Add(bufferSelect);
-                    }
-
-                    string dataType = xn.SelectSingleNode("category").InnerText;
-                    DataAdd(dataType, xn, bufferSelect, "obsrValue");
-                }
-
-                WeatherResult wr = new WeatherResult();
-                wr._baseTime = GetBaseTime(responseBody);
-                wr._result = buffer;
-                return wr;
+                throw new HttpRequestException($"HTTP ERROR: {(int)response.StatusCode}");
             }
-            catch (HttpRequestException)
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+            ApiResultState wrState = GetApiResultState(responseBody);
+            if (wrState != ApiResultState.NORMAL_SERVICE)
             {
-                throw;
+                throw new KMAWeatherApiException($"API ERROR: {wrState}");
             }
+
+            //data add
+            WeatherData weatherData = new WeatherData();
+            weatherData.latitude = parameter.latitude;
+            weatherData.longitude = parameter.longitude;
+            weatherData.baseDateTime = GetBaseTime(responseBody);
+
+            JsonNode root = JsonNode.Parse(responseBody);
+            JsonArray items = root["response"]["body"]["items"]["item"].AsArray();
+
+            foreach (JsonNode item in items)
+            {
+                string date = item["baseDate"].GetValue<string>();
+                string time = item["baseTime"].GetValue<string>();
+                DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
+
+                var target = weatherData.items.FirstOrDefault(x => x.fcstDateTime == dt);
+                if (target == null)
+                {
+                    string category = item["category"].GetValue<string>();
+                    string value = item["obsrValue"].GetValue<string>();
+                    weatherData.items.Add(new WeatherDataItem() { fcstDateTime = dt, values = new Dictionary<string, string> { { category, value } } });
+                }
+                else
+                {
+                    string category = item["category"].GetValue<string>();
+                    string value = item["obsrValue"].GetValue<string>();
+                    target.values.Add(category, value);
+                }
+            }
+
+            return weatherData;
         }
-        public static async Task<WeatherResult> UltraShortPredictAsync(WeatherParameter parameter)
+        public static async Task<WeatherData> UltraShortPredictAsync(WeatherParameter parameter)
         {
-            string responseBody;
             string apiUrl = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst";
-            string parameterString = "";
-
             var (nx, ny) = LambertCCProjection.LatLonToGrid(parameter.latitude, parameter.longitude);
 
             //date convert
             DateTime dateTimeConvert = new();
-
             if (parameter.dateTimeMode == DateTimeMode.Raw)
             {
                 dateTimeConvert = parameter.dateTime;
@@ -123,86 +107,71 @@ namespace KMAWeatherLibrary
                 dateTimeConvert = DateFloor(parameter.dateTime, new TimeSpan(0, 30, 0), 60, 15 + 60);
             }
 
-            string base_date = dateTimeConvert.Year.ToString() + dateTimeConvert.Month.ToString("D2") + dateTimeConvert.Day.ToString("D2");
-            string base_time = dateTimeConvert.Hour.ToString("D2") + dateTimeConvert.Minute.ToString("D2");
-
-            parameterString += "serviceKey=" + parameter.serviceKey + "&";
-            parameterString += "numOfRows=" + "1000" + "&";
-            parameterString += "pageNo=" + "1" + "&";
-            parameterString += "base_date=" + base_date + "&";
-            parameterString += "base_time=" + base_time + "&";
-            parameterString += "nx=" + nx + "&";
-            parameterString += "ny=" + ny;
+            //set url
+            string parameterString = "serviceKey=" + parameter.serviceKey + "&" +
+                                     "pageNo=" + "1" + "&" +
+                                     "numOfRows=" + "1000" + "&" +
+                                     "dataType=" + "JSON" + "&" +
+                                     "base_date=" + dateTimeConvert.ToString("yyyyMMdd") + "&" +
+                                     "base_time=" + dateTimeConvert.ToString("HHmm") + "&" +
+                                     "nx=" + nx + "&" +
+                                     "ny=" + ny;
 
             string fullUrl = $"{apiUrl}?{parameterString}";
 
             //api call
-            try
+            HttpResponseMessage response = await client.GetAsync(fullUrl);
+            if (response.IsSuccessStatusCode == false)
             {
-                HttpClient client = new();
-                HttpResponseMessage response = await client.GetAsync(fullUrl);
-                response.EnsureSuccessStatusCode();
-                responseBody = await response.Content.ReadAsStringAsync();
-
-                if (GetState(responseBody) != WeatherResultState.NORMAL_SERVICE)
-                {
-                    throw new KMAWeatherApiException($"Api Error: {GetState(responseBody)}");
-                }
-
-                //data add
-                List<Dictionary<string, string>> buffer = new();
-
-                XmlDocument xmlDoc = new();
-                xmlDoc.LoadXml(responseBody);
-                XmlNode xmlNode = xmlDoc.DocumentElement;
-                XmlNodeList xnl = xmlNode.SelectNodes("//body/items/item");
-                foreach (XmlNode xn in xnl)
-                {
-                    string date = xn.SelectSingleNode("fcstDate").InnerText;
-                    string time = xn.SelectSingleNode("fcstTime").InnerText;
-                    DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
-
-                    Dictionary<string, string> bufferSelect = null;
-
-                    foreach (Dictionary<string, string> a in buffer)
-                    {
-                        if (a["dateTime"] == dt.ToString("yyyyMMddHHmm"))
-                        {
-                            bufferSelect = a;
-                            break;
-                        }
-                    }
-                    if (bufferSelect == null)
-                    {
-                        bufferSelect = new Dictionary<string, string> { { "dateTime", dt.ToString("yyyyMMddHHmm") } };
-                        buffer.Add(bufferSelect);
-                    }
-
-                    string dataType = xn.SelectSingleNode("category").InnerText;
-                    DataAdd(dataType, xn, bufferSelect, "fcstValue");
-                }
-
-                WeatherResult wr = new WeatherResult();
-                wr._baseTime = GetBaseTime(responseBody);
-                wr._result = buffer;
-                return wr;
+                throw new HttpRequestException($"HTTP ERROR: {(int)response.StatusCode}");
             }
-            catch (HttpRequestException)
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+            ApiResultState wrState = GetApiResultState(responseBody);
+            if (wrState != ApiResultState.NORMAL_SERVICE)
             {
-                throw;
+                throw new KMAWeatherApiException($"API ERROR: {wrState}");
             }
+
+            //data add
+            WeatherData weatherData = new WeatherData();
+            weatherData.latitude = parameter.latitude;
+            weatherData.longitude = parameter.longitude;
+            weatherData.baseDateTime = GetBaseTime(responseBody);
+
+            JsonNode root = JsonNode.Parse(responseBody);
+            JsonArray items = root["response"]["body"]["items"]["item"].AsArray();
+
+            foreach (JsonNode item in items)
+            {
+                string date = item["fcstDate"].GetValue<string>();
+                string time = item["fcstTime"].GetValue<string>();
+                DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
+
+                var target = weatherData.items.FirstOrDefault(x => x.fcstDateTime == dt);
+                if (target == null)
+                {
+                    string category = item["category"].GetValue<string>();
+                    string value = item["fcstValue"].GetValue<string>();
+                    weatherData.items.Add(new WeatherDataItem() { fcstDateTime = dt, values = new Dictionary<string, string> { { category, value } } });
+                }
+                else
+                {
+                    string category = item["category"].GetValue<string>();
+                    string value = item["fcstValue"].GetValue<string>();
+                    target.values.Add(category, value);
+                }
+            }
+
+            return weatherData;
         }
-        public static async Task<WeatherResult> ShortPredictAsync(WeatherParameter parameter)
+        public static async Task<WeatherData> ShortPredictAsync(WeatherParameter parameter)
         {
-            string responseBody;
             string apiUrl = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst";
-            string parameterString = "";
-
             var (nx, ny) = LambertCCProjection.LatLonToGrid(parameter.latitude, parameter.longitude);
 
             //date convert
             DateTime dateTimeConvert = new();
-
             if (parameter.dateTimeMode == DateTimeMode.Raw)
             {
                 dateTimeConvert = parameter.dateTime;
@@ -216,244 +185,193 @@ namespace KMAWeatherLibrary
                 dateTimeConvert = DateFloor(parameter.dateTime, new TimeSpan(2, 0, 0), 180, 10 + 180);
             }
 
-            string base_date = dateTimeConvert.Year.ToString() + dateTimeConvert.Month.ToString("D2") + dateTimeConvert.Day.ToString("D2");
-            string base_time = dateTimeConvert.Hour.ToString("D2") + dateTimeConvert.Minute.ToString("D2");
-
-            parameterString += "serviceKey=" + parameter.serviceKey + "&";
-            parameterString += "numOfRows=" + "1000" + "&";
-            parameterString += "pageNo=" + "1" + "&";
-            parameterString += "base_date=" + base_date + "&";
-            parameterString += "base_time=" + base_time + "&";
-            parameterString += "nx=" + nx + "&";
-            parameterString += "ny=" + ny;
+            //set url
+            string parameterString = "serviceKey=" + parameter.serviceKey + "&" +
+                                     "pageNo=" + "1" + "&" +
+                                     "numOfRows=" + "1000" + "&" +
+                                     "dataType=" + "JSON" + "&" +
+                                     "base_date=" + dateTimeConvert.ToString("yyyyMMdd") + "&" +
+                                     "base_time=" + dateTimeConvert.ToString("HHmm") + "&" +
+                                     "nx=" + nx + "&" +
+                                     "ny=" + ny;
 
             string fullUrl = $"{apiUrl}?{parameterString}";
 
             //api call
-            try
+            HttpResponseMessage response = await client.GetAsync(fullUrl);
+            if (response.IsSuccessStatusCode == false)
             {
-                HttpClient client = new();
-                HttpResponseMessage response = await client.GetAsync(fullUrl);
-                response.EnsureSuccessStatusCode();
-                responseBody = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"HTTP ERROR: {(int)response.StatusCode}");
+            }
 
-                if (GetState(responseBody) != WeatherResultState.NORMAL_SERVICE)
+            string responseBody = await response.Content.ReadAsStringAsync();
+            ApiResultState wrState = GetApiResultState(responseBody);
+            if (wrState != ApiResultState.NORMAL_SERVICE)
+            {
+                throw new KMAWeatherApiException($"API ERROR: {wrState}");
+            }
+
+            //data add
+            WeatherData weatherData = new WeatherData();
+            weatherData.latitude = parameter.latitude;
+            weatherData.longitude = parameter.longitude;
+            weatherData.baseDateTime = GetBaseTime(responseBody);
+
+            JsonNode root = JsonNode.Parse(responseBody);
+            JsonArray items = root["response"]["body"]["items"]["item"].AsArray();
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                JsonNode item = items[i];
+
+                string date = item["fcstDate"].GetValue<string>();
+                string time = item["fcstTime"].GetValue<string>();
+                DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
+
+                string category = item["category"].GetValue<string>();
+                string value = item["fcstValue"].GetValue<string>();
+
+                var target = weatherData.items.FirstOrDefault(x => x.fcstDateTime == dt);
+                if (target == null)
                 {
-                    throw new KMAWeatherApiException($"Api Error: {GetState(responseBody)}");
+                    weatherData.items.Add(new WeatherDataItem() { fcstDateTime = dt, values = new Dictionary<string, string> { { category, value } } });
                 }
+                else
+                {
+                    target.values.Add(category, value);
+                }
+            }
 
-                //data add
-                List<Dictionary<string, string>> buffer = new();
+            return weatherData;
+        }
 
+        static (string, string) WeatherValueConvertDefault(string category, string value)
+        {
+            if (int.TryParse(value, out int result) && (result <= -900 || result >= 900))
+            {
+                return(category, "");
+            }
+            return (category, value);
+        }
+        static (string, string) WeatherValueConvertEnglish(string category, string value)
+        {
+            //초단기 실황, 초단기 예보
+            if (category == "T1H") { return ("temperature", value); }
+            if (category == "RN1") { return ("rainPerHour", value); }
+            if (category == "SKY")
+            {
+                string valueBuffer = value;
+                if (value == "1") { valueBuffer = "clear"; }
+                if (value == "3") { valueBuffer = "mostlyCloudy"; }
+                if (value == "4") { valueBuffer = "overcast"; }
+                return ("skyType", valueBuffer);
+            }
+            if (category == "UUU") { return ("windComponentU", value); }
+            if (category == "VVV") { return ("windComponentV", value); }
+            if (category == "REH") { return ("humidity", value); }
+            if (category == "PTY")
+            {
+                string valueBuffer = value;
+                if (value == "0") { valueBuffer = "none"; }
+                if (value == "1") { valueBuffer = "rain"; }
+                if (value == "2") { valueBuffer = "rainSnow"; }
+                if (value == "3") { valueBuffer = "snow"; }
+                if (value == "4") { valueBuffer = "shower"; }
+                if (value == "5") { valueBuffer = "drizzle"; }
+                if (value == "6") { valueBuffer = "drizzleSnowFlurry"; }
+                if (value == "7") { valueBuffer = "snowFlurry"; }
+                return ("precipitationType", valueBuffer);
+            }
+            if (category == "LGT") { return ("lightning", value); }
+            if (category == "VEC") { return ("windDirection", value); }
+            if (category == "WSD") { return ("windSpeed", value); }
+
+            //단기 예보
+            if (category == "POP") { return ("precipitationProbability", value); }
+            if (category == "PCP") { return ("rainPerHour", value); } //
+            if (category == "SNO") { return ("snowPerHour", value); }
+            if (category == "TMP") { return ("temperature", value); } //
+            if (category == "TMN") { return ("dailyMinTemperature", value); }
+            if (category == "TMX") { return ("dailyMaxTemperature", value); }
+            if (category == "WAV") { return ("waveHeight", value); }
+
+            return (category,  value);
+        }
+        static DateTime GetBaseTime(string json)
+        {
+            JsonNode root = JsonNode.Parse(json);
+            JsonArray items = root["response"]["body"]["items"]["item"].AsArray();
+
+            string date = items[0]["baseDate"].GetValue<string>();
+            string time = items[0]["baseTime"].GetValue<string>();
+
+            DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
+            return dt;
+        }
+        static ApiResultState GetApiResultState(string json)
+        {
+            //게이트웨이 자체에서 결과를 돌려주는 경우가 있음 (서버 쪽 문제)
+            //원래 xml 구조가 아닌 특정 xml 형태로 결과코드 반환
+            //json 요청이더라도 xml로 반환
+            if (json.Contains("<OpenAPI_ServiceResponse>"))
+            {
                 XmlDocument xmlDoc = new();
-                xmlDoc.LoadXml(responseBody);
-                XmlNode xmlNode = xmlDoc.DocumentElement;
-                XmlNodeList xnl = xmlNode.SelectNodes("//body/items/item");
-                foreach (XmlNode xn in xnl)
-                {
-                    string date = xn.SelectSingleNode("fcstDate").InnerText;
-                    string time = xn.SelectSingleNode("fcstTime").InnerText;
-                    DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
+                xmlDoc.LoadXml(json);
+                XmlNode resultCode = xmlDoc.SelectSingleNode("//OpenAPI_ServiceResponse/cmmMsgHeader/returnReasonCode");
 
-                    Dictionary<string, string> bufferSelect = null;
-
-                    foreach (Dictionary<string, string> a in buffer)
-                    {
-                        if (a["dateTime"] == dt.ToString("yyyyMMddHHmm"))
-                        {
-                            bufferSelect = a;
-                            break;
-                        }
-                    }
-                    if (bufferSelect == null)
-                    {
-                        bufferSelect = new Dictionary<string, string> { { "dateTime", dt.ToString("yyyyMMddHHmm") } };
-                        buffer.Add(bufferSelect);
-                    }
-
-                    string dataType = xn.SelectSingleNode("category").InnerText;
-                    DataAdd(dataType, xn, bufferSelect, "fcstValue");
-                }
-
-                WeatherResult wr = new WeatherResult();
-                wr._baseTime = GetBaseTime(responseBody);
-                wr._result = buffer;
-                return wr;
+                return (ApiResultState)int.Parse(resultCode.InnerText);
             }
-            catch (HttpRequestException)
+            //api 결과코드
+            else
             {
-                throw;
+                JsonNode root = JsonNode.Parse(json);
+                string resultCode = root["response"]["header"]["resultCode"].GetValue<string>();
+                return (ApiResultState)int.Parse(resultCode);
             }
-        }
-
-        static void DataAdd(string dataType, XmlNode xn, Dictionary<string, string> bufferSelect, string valueString)
-        {
-            //초단기 실황 + 초단기 예보
-            if (dataType == "T1H")
-            {
-                bufferSelect.Add("temperature", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "RN1")
-            {
-                bufferSelect.Add("rainPerHour", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "SKY")
-            {
-                string buffer = xn.SelectSingleNode(valueString).InnerText;
-                string buffer2 = "";
-                if (buffer == "1")
-                {
-                    buffer2 = "맑음";
-                }
-                else if (buffer == "3")
-                {
-                    buffer2 = "구름많음";
-                }
-                else if (buffer == "4")
-                {
-                    buffer2 = "흐림";
-                }
-                else
-                {
-                    buffer2 = buffer;
-                }
-                bufferSelect.Add("skyState", buffer2);
-            }
-            else if (dataType == "UUU")
-            {
-                bufferSelect.Add("windDirectionEW", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "VVV")
-            {
-                bufferSelect.Add("windDirectionNS", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "REH")
-            {
-                bufferSelect.Add("humidity", xn.SelectSingleNode(valueString).InnerText);
-            }
-
-            else if (dataType == "PTY")
-            {
-                string buffer = xn.SelectSingleNode(valueString).InnerText;
-                string buffer2 = "";
-                if (buffer == "0")
-                {
-                    buffer2 = "없음";
-                }
-                else if (buffer == "1")
-                {
-                    buffer2 = "비";
-                }
-                else if (buffer == "2")
-                {
-                    buffer2 = "비/눈";
-                }
-                else if (buffer == "3")
-                {
-                    buffer2 = "눈";
-                }
-                else if (buffer == "4")
-                {
-                    buffer2 = "소나기";
-                }
-                else if (buffer == "5")
-                {
-                    buffer2 = "빗방울";
-                }
-                else if (buffer == "6")
-                {
-                    buffer2 = "빗방울눈날림";
-                }
-                else if (buffer == "7")
-                {
-                    buffer2 = "눈날림";
-                }
-                else
-                {
-                    buffer2 = buffer;
-                }
-                bufferSelect.Add("rainState", buffer2);
-            }
-            else if (dataType == "LGT")
-            {
-                bufferSelect.Add("lightning", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "VEC")
-            {
-                bufferSelect.Add("windDirection", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "WSD")
-            {
-                bufferSelect.Add("windStrength", xn.SelectSingleNode(valueString).InnerText);
-            }
-
-            //+ 단기 예보
-            if (dataType == "POP")
-            {
-                bufferSelect.Add("rainPercent", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "PCP")
-            {
-                bufferSelect.Add("rainPerHour", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "SNO")
-            {
-                bufferSelect.Add("snowPerHour", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "TMP")
-            {
-                bufferSelect.Add("temperature", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "TMN")
-            {
-                bufferSelect.Add("dayMinTemperature", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "TMX")
-            {
-                bufferSelect.Add("dayMaxTemperature", xn.SelectSingleNode(valueString).InnerText);
-            }
-            else if (dataType == "WAV")
-            {
-                bufferSelect.Add("waveHeight", xn.SelectSingleNode(valueString).InnerText);
-            }
-        }
-        static string GetBaseTime(string xml)
-        {
-            XmlDocument xmlDoc = new();
-            xmlDoc.LoadXml(xml);
-            XmlNode xmlNode = xmlDoc.DocumentElement;
-
-            string date = xmlNode.SelectSingleNode("//body/items/item/baseDate").InnerText;
-            string time = xmlNode.SelectSingleNode("//body/items/item/baseTime").InnerText;
-            return date + time;
-        }
-        static WeatherResultState GetState(string xml)
-        {
-            XmlDocument xmlDoc = new();
-            xmlDoc.LoadXml(xml);
-            XmlNode xmlNode = xmlDoc.DocumentElement;
-            XmlNode state = xmlNode.SelectSingleNode("//header/resultCode");
-            if (state == null)
-            {
-                state = xmlNode.SelectSingleNode("//OpenAPI_ServiceResponse/cmmMsgHeader/returnReasonCode");
-            }
-            return (WeatherResultState)int.Parse(state.InnerText);
         }
         static DateTime DateFloor(DateTime inputTime, TimeSpan baseTime, int stepMin, int delayMin)
         {
-            DateTime inputDt = inputTime - new TimeSpan(0, delayMin, 0);
-            DateTime baseDt = new DateTime(inputDt.Year, inputDt.Month, inputDt.Day, baseTime.Hours, baseTime.Minutes, baseTime.Seconds);
+            inputTime = inputTime.AddMinutes(-delayMin);
+            DateTime baseDt = new DateTime(inputTime.Year, inputTime.Month, inputTime.Day, baseTime.Hours, baseTime.Minutes, baseTime.Seconds);
 
-            TimeSpan delta = inputDt - baseDt;
-            double deltaMin = delta.TotalMinutes;
+            int stepCount = (int)Math.Floor((inputTime - baseDt).TotalMinutes / stepMin);
 
-            int flooredDeltaMin = (int)Math.Floor(deltaMin / stepMin) * stepMin;
-
-            DateTime flooredTime = baseDt.AddMinutes(flooredDeltaMin);
-            return flooredTime;
+            return baseDt.AddMinutes(stepCount * stepMin);
         }
     }
 
+    public class WeatherParameter(string serviceKey, double latitude, double longitude, DateTime dateTime, DateTimeMode dateTimeMode)
+    {
+        public string serviceKey = serviceKey;
+        public double latitude = latitude; //위도
+        public double longitude = longitude; //경도
+        public DateTimeMode dateTimeMode = dateTimeMode;
+        public DateTime dateTime = dateTime;
+    }
+    public class WeatherData
+    {
+        public DateTime baseDateTime { get; set; }
+        public double latitude { get; set; } //위도
+        public double longitude { get; set; } //경도
+        public List<WeatherDataItem> items { get; set; } = new();
+    }
+    public class WeatherDataItem()
+    {
+        public DateTime fcstDateTime { get; set; }
+        public Dictionary<string, string> values { get; set; } = new();
+    }
+
+    public static class WeatherDataConvert
+    {
+        public static string ToJson(WeatherData weatherData)
+        {
+            return JsonSerializer.Serialize(weatherData, new JsonSerializerOptions { IncludeFields = true, WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        }
+        public static string ToJsonEscaped(WeatherData weatherData)
+        {
+            return JsonSerializer.Serialize(weatherData, new JsonSerializerOptions { IncludeFields = true, WriteIndented = true });
+        }
+    }
     class LambertCCProjection
     {
         private const double PI = Math.PI;
@@ -494,30 +412,12 @@ namespace KMAWeatherLibrary
             return (Math.Round(x), Math.Round(y));
         }
     }
-
-    public class WeatherResult
-    {
-        public string BaseTime => _baseTime;
-        public IReadOnlyList<Dictionary<string, string>> Result => _result;
-
-        internal string _baseTime  = "";
-        internal List<Dictionary<string, string>> _result = new();
-    }
-    public class WeatherParameter(string serviceKey, double latitude, double longitude, DateTime dateTime, DateTimeMode dateTimeMode)
-    {
-        public string serviceKey = serviceKey;
-        public double latitude = latitude; //위도
-        public double longitude = longitude; //경도
-        public DateTimeMode dateTimeMode = dateTimeMode;
-
-        public DateTime dateTime = dateTime;
-    }
     class KMAWeatherApiException : Exception
     {
         public KMAWeatherApiException(string message) : base(message) { }
     }
 
-    public enum WeatherResultState
+    public enum ApiResultState
     {
         NORMAL_SERVICE = 0,
         APPLICATION_ERROR = 1,

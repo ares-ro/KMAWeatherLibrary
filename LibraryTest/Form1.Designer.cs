@@ -37,11 +37,11 @@
             // button1
             // 
             button1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            button1.Location = new Point(1158, 9);
+            button1.Location = new Point(1152, 12);
             button1.Name = "button1";
-            button1.Size = new Size(94, 28);
+            button1.Size = new Size(100, 25);
             button1.TabIndex = 0;
-            button1.Text = "run";
+            button1.Text = "api 요청";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
@@ -51,9 +51,9 @@
             label1.Font = new Font("맑은 고딕", 15F);
             label1.Location = new Point(12, 9);
             label1.Name = "label1";
-            label1.Size = new Size(110, 28);
+            label1.Size = new Size(63, 28);
             label1.TabIndex = 2;
-            label1.Text = "발표 시점: ";
+            label1.Text = "정보: ";
             // 
             // dataGridView1
             // 
