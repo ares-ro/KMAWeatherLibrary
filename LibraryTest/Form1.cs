@@ -1,10 +1,5 @@
-using System.Data;
 using System.Diagnostics;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Windows.Forms;
 using KMAWeatherLibrary;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace LibraryTest
 {

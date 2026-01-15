@@ -220,17 +220,15 @@ namespace KMAWeatherLibrary
             JsonNode root = JsonNode.Parse(responseBody);
             JsonArray items = root["response"]["body"]["items"]["item"].AsArray();
 
-            for (int i = 0; i < items.Count; i++)
+            foreach (JsonNode item in items)
             {
-                JsonNode item = items[i];
-
                 string date = item["fcstDate"].GetValue<string>();
                 string time = item["fcstTime"].GetValue<string>();
                 DateTime dt = DateTime.ParseExact(date + time, "yyyyMMddHHmm", null);
 
                 string category = item["category"].GetValue<string>();
                 string value = item["fcstValue"].GetValue<string>();
-
+                
                 var target = weatherData.items.FirstOrDefault(x => x.fcstDateTime == dt);
                 if (target == null)
                 {
@@ -355,7 +353,7 @@ namespace KMAWeatherLibrary
         public double longitude { get; set; } //경도
         public List<WeatherDataItem> items { get; set; } = new();
     }
-    public class WeatherDataItem()
+    public class WeatherDataItem
     {
         public DateTime fcstDateTime { get; set; }
         public Dictionary<string, string> values { get; set; } = new();
