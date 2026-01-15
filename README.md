@@ -12,27 +12,16 @@ API에 관한 상세정보는 https://www.data.go.kr/data/15084084/openapi.do �
 # 예제
 - 코드 예제
 ```
-string key = "api key"; //api key
-WeatherParameter parameter = new WeatherParameter(key, 37.55476, 126.97075, DateTime.Now, DateTimeMode.Floor);
+//get data
+string apiKey = "api key";
+WeatherParameter parameter = new WeatherParameter(apiKey, 37.55476, 126.97075, DateTime.Now, DateTimeMode.Floor);
 
-//WeatherResult wrNow;
-//WeatherResult wrUSPredict;
-WeatherResult wrSPredict = new WeatherResult();
+WeatherData weatherData = new WeatherData();
 try
 {
-    //wrNow = await GetWeather.NowAsync(parameter);
-    //wrUSPredict = await GetWeather.UltraShortPredictAsync(parameter);
-    wrSPredict = await GetWeather.ShortPredictAsync(parameter);
-
-    Debug.WriteLine(wrSPredict.BaseTime);
-    foreach (Dictionary<string, string> a in wrSPredict.Result)
-    {
-        foreach (KeyValuePair<string, string> b in a)
-        {
-            Debug.WriteLine($"{b.Key}: {b.Value}");
-        }
-        Debug.WriteLine("");
-    }
+    //weatherData = await GetWeather.NowAsync(parameter);
+    //weatherData = await GetWeather.UltraShortPredictAsync(parameter);
+    weatherData = await GetWeather.ShortPredictAsync(parameter);
 }
 catch (Exception ex)
 {
@@ -73,31 +62,83 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 | GetWeather.ShortPredictAsync | 단기예보 |
 
 ### 결과 데이터
-- WeatherResult
+- WeatherData
 
 | 데이터 | 설명 |
 | :--- | :--- |
-| BaseTime | 기상 데이터의 발표 시점 |
-| Result | 기상 데이터 |
+| baseDateTime | 기상 데이터의 발표 시점 |
+| latitude | 위도 |
+| longitude | 경도 |
+| items | 기상 데이터 |
 
-- WeatherResult.Result  
-호출 메소드마다 반환되는 데이터에 차이가 있습니다. 상세정보는 https://www.data.go.kr/data/15084084/openapi.do에서 확인 가능합니다.
+- WeatherData.items
+호출 메소드마다 반환되는 데이터에 차이가 있습니다. 상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
 
-| 데이터 | 설명 | 비고 |
-| :--- | :--- | :--- |
-| dateTime | 날짜 | yyyyMMddHHmm |
-| temperature | 기온 | °C |
-| rainPerHour | 1시간 강수량 | mm |
-| skyState | 하늘상태 | 맑음, 구름많음, 흐림 |
-| windDirectionEW | 동서 풍속 | m/s |
-| windDirectionNS | 남북 풍속 | m/s |
-| humidity | 습도 | % |
-| rainState | 강수형태 | 없음, 비, 비/눈, 눈, 소나기, 빗방울, 빗방울눈날림, 눈날림 |
-| lightning | 낙뢰 | kA/km^2 |
-| windDirection | 풍향 | deg | 
-| windStrength | 풍속 | m/s |
-| rainPercent | 강수확률 | % | 
-| snowPerHour | 1시간 신적설 | cm | 
-| dayMinTemperature | 일 최저기온 | °C | 
-| dayMaxTemperature | 일 최고기온 | °C | 
-| waveHeight | 파고 | m | 
+- 단기예보
+
+| 항목값 | 항목명      | 단위      |
+| :-- | :------- | :------ |
+| POP | 강수확률     | %       |
+| PTY | 강수형태     | 코드값     |
+| PCP | 1시간강수량   | 범주(1mm) |
+| REH | 습도       | %       |
+| SNO | 1시간신적설   | 범주(1cm) |
+| SKY | 하늘상태     | 코드값     |
+| TMP | 1시간기온    | ℃       |
+| TMN | 일최저기온    | ℃       |
+| TMX | 일최고기온    | ℃       |
+| UUU | 풍속(동서성분) | m/s     |
+| VVV | 풍속(남북성분) | m/s     |
+| WAV | 파고       | M       |
+| VEC | 풍향       | deg     |
+| WSD | 풍속       | m/s     |
+
+- 초단기실황
+
+| 항목값 | 항목명    | 단위  |
+| :-- | :----- | :-- |
+| T1H | 기온     | ℃   |
+| RN1 | 1시간강수량 | mm  |
+| UUU | 동서바람성분 | m/s |
+| VVV | 남북바람성분 | m/s |
+| REH | 습도     | %   |
+| PTY | 강수형태   | 코드값 |
+| VEC | 풍향     | deg |
+| WSD | 풍속     | m/s |
+
+- 초단기예보
+
+| 항목값 | 항목명    | 단위      |
+| :-- | :----- | :------ |
+| T1H | 기온     | ℃       |
+| RN1 | 1시간강수량 | 범주(1mm) |
+| SKY | 하늘상태   | 코드값     |
+| UUU | 동서바람성분 | m/s     |
+| VVV | 남북바람성분 | m/s     |
+| REH | 습도     | %       |
+| PTY | 강수형태   | 코드값     |
+| LGT | 낙뢰     | kA      |
+| VEC | 풍향     | deg     |
+| WSD | 풍속     | m/s     |
+
+- 하늘상태
+
+| 하늘상태(SKY) 코드 | 데이터 |
+| :---------------- | :----- |
+| 1 | 맑음 |
+| 3 | 구름많음 |
+| 4 | 흐림 |
+
+- 강수상태
+
+| 강수상태(PTY) 코드 | 데이터 |
+| :---------------- | :----- |
+| 0 | 없음 |
+| 1 | 비 |
+| 2 | 비/눈 |
+| 3 | 눈 |
+| 4 | 소나기 |
+| 5 | 빗방울 |
+| 6 | 빗방울눈날림 |
+| 7 | 눈날림 |
+
