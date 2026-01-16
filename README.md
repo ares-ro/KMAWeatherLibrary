@@ -71,7 +71,7 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 | longitude | 경도 |
 | items | 기상 데이터 |
 
-- WeatherData.items
+- WeatherData.items  
 호출 메소드마다 반환되는 데이터에 차이가 있습니다. 상세정보는 https://www.data.go.kr/data/15084084/openapi.do 에서 확인 가능합니다.
 
 - 단기예보
