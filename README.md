@@ -55,7 +55,7 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 | DateTimeMode.FloorBefore | 호출 가능한 가장 가까운 발표 시점에서 바로 전 시점으로 설정합니다. 예측 데이터가 예상시간 내에 생성되지 못했을 경우 이전 데이터를 가져오기 위해 사용하기 적합합니다. |
 
 ### API 호출
-| 호출 메소드 | 설명 |
+| 메소드 | 설명 |
 | :--- | :--- |
 | GetWeather.NowAsync | 초단기실황 |
 | GetWeather.UltraShortPredictAsync | 초단기예보 |
@@ -142,3 +142,11 @@ new WeatherParameter(serviceKey, latitude, longitude, dateTime, dateTimeMode);
 | 6 | 빗방울눈날림 |
 | 7 | 눈날림 |
 
+### Json 직렬화
+- WeatherDataConvert  
+결과 데이터를 Json으로 직렬화합니다.
+
+| 메서드 | 설명 |
+| :---------  | :--- |
+| ToJson | Json으로 직렬화하며 문자 이스케이프는 하지 않습니다. |
+| ToJsonEscaped | Json으로 직렬화하며 문자를 이스케이프 합니다. |
